@@ -24,9 +24,6 @@ class LED {
         
         // ---------------------------- VARIABLES ----------------------------
 
-        // Byte array for current RGB values
-        byte RGB[3] = { 0, 0, 0 };
-
         pattern ActivePattern;
         // pattern NextPattern;
 
@@ -39,11 +36,14 @@ class LED {
 
         // Other variables
         byte BPM = 120;
-        byte CurrentColNo = 0;
-        byte NextColNo = 0;
-        byte prevBPM = 0;
-        byte BeatDenom = 4;
+        uint32_t currentColour = 0;
+        uint32_t nextColour = 0;
         order ColourOrder = FORWARD;
+        byte BeatDenom = 4;
+        // TotalSteps for fading, 17 gives step size of 15;
+        byte TotalSteps = 17;
+        byte currentStep = 0;
+
         float dutyCycle;
         bool onState;
 
@@ -68,6 +68,8 @@ class LED {
             }
         }
 
+        // ---------------------------- BPM FUNCTIONS ----------------------------
+
         byte UpdateBPM(int change) {
             if ((BPM - change >= 0) && (BPM + change <= 255)) {
                 BPM += change;
@@ -84,20 +86,67 @@ class LED {
             }
         }
 
-        byte getNextColNo() {
+        float calcMS(byte denom) {
+            return 60000/(BPM*denom);
+        }
+
+        // ---------------------------- COLOUR FUNCTIONS ----------------------------
+
+        // Returns the Red component of a 32-bit color
+        uint8_t Red(uint32_t color)
+        {
+            return (color >> 16) & 0xFF;
+        }
+
+        // Returns the Green component of a 32-bit color
+        uint8_t Green(uint32_t color)
+        {
+            return (color >> 8) & 0xFF;
+        }
+
+        // Returns the Blue component of a 32-bit color
+        uint8_t Blue(uint32_t color)
+        {
+            return color & 0xFF;
+        }
+
+        uint32_t getNextColour() {
             switch(ColourOrder) {
                 // Select the next colour number
                 case FORWARD:
                     // (R->G->B->R...)
-                    return (CurrentColNo < 2) ? CurrentColNo + 1 : 0;
+                    if (currentColour > 0x0000FF) {
+                        return currentColour >> 8;
+                    }
+                    else {
+                        return 0xFF0000;
+                    }
                 case BACKWARD:
                     // (B->G->R->B...)
-                    return (CurrentColNo > 0) ? CurrentColNo - 1 : 2;
+                    if (currentColour < 0xFF0000) {
+                        return currentColour << 8;
+                    }
+                    else {
+                        return 0x0000FF;
+                    }
                 case RANDOM:
-                    // Random colour order;
-                    return random(3);
+                    // Random colour;
+                    return (random(255) << 16 | random(255) << 8 | random(255));
             }
         }
+
+        uint32_t Colour(uint8_t r, uint8_t g, uint8_t b) {
+            return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
+        }
+
+        void setColour(uint32_t inputColour) {
+            analogWrite(R_PIN, Red(inputColour));
+            analogWrite(G_PIN, Green(inputColour));
+            analogWrite(B_PIN, Blue(inputColour));
+            return;
+        }
+
+        // ---------------------------- PATTERN FUNCTIONS ----------------------------
 
         void Update() {
             if((millis() - lastUpdate) > Interval) {
@@ -112,8 +161,6 @@ class LED {
                     default:
                         break;
                 }
-                // Set the lights after updating RGB[]
-                setColour(RGB[0], RGB[1], RGB[2]);  
             }
         }
 
@@ -122,61 +169,47 @@ class LED {
             onTime = TotalInterval*dutyCycle;
             offTime = TotalInterval - onTime;
             Interval = onTime;
-            CurrentColNo = 0;
+            currentColour = 0xFF0000;
             onState = false;
         }
 
         void FlashUpdate() {
             // Check if lights are in ON or OFF state
             if(onState) {
-                RGB[0] = 0;
-                RGB[1] = 0;
-                RGB[2] = 0;
+                // Turn the lights off
+                setColour(0);
+                currentColour = getNextColour();
                 Interval = offTime;
                 onState = false;
             }
             else {
-                CurrentColNo = getNextColNo();
-                RGB[CurrentColNo] = 255;
+                setColour(currentColour);
                 Interval = onTime;
                 onState = true;
             } 
         }
 
         void Fade() {
-            Interval = TotalInterval/17;
-            RGB[0] = 255;
-            RGB[1] = 0;
-            RGB[2] = 0;
-            CurrentColNo = 0;
+            Interval = TotalInterval/TotalSteps;
+            currentColour = 0xFF0000;
+            nextColour = getNextColour();
+            currentStep = 0;
         }
 
         void FadeUpdate() {
-            if (RGB[CurrentColNo] == 255 && RGB[NextColNo] < 255) {
-                RGB[NextColNo] += 15;
+            // Calculate linear interpolation between Color1 and Color2
+            // Optimise order of operations to minimize truncation error
+            if (currentStep >= TotalSteps) {
+                nextColour = getNextColour();
+                currentStep = 0;
             }
-            else if (RGB[CurrentColNo] > 0 && RGB[NextColNo] == 255) {
-                RGB[CurrentColNo] -= 15;
-            }
-            else if (RGB[CurrentColNo] == 0 && RGB[NextColNo] == 255) {
-                CurrentColNo = NextColNo;
-                NextColNo = getNextColNo();
-            }
-            else if (RGB[CurrentColNo] < 255) {
-                RGB[CurrentColNo] += 15;
-            }
-        }
-
-        void setColour(byte red, byte green, byte blue) {
-            analogWrite(R_PIN, red);
-            analogWrite(G_PIN, green);
-            analogWrite(B_PIN, blue);
-            return;
-        }
-
-        float calcMS(byte denom) {
-            return 60000/(BPM*denom);
-        }
+            uint8_t red = ((Red(currentColour) * (TotalSteps - currentStep)) + (Red(nextColour) * currentStep)) / TotalSteps;
+            uint8_t green = ((Green(currentColour) * (TotalSteps - currentStep)) + (Green(nextColour) * currentStep)) / TotalSteps;
+            uint8_t blue = ((Blue(currentColour) * (TotalSteps - currentStep)) + (Blue(nextColour) * currentStep)) / TotalSteps;
+            
+            setColour(Colour(red, green, blue));
+            ++currentStep;
+        }        
 };
 
 // ---------------------------- GLOBAL FUNCTIONS ----------------------------

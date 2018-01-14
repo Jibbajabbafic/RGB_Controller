@@ -2,5 +2,6 @@
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
     "port": "COM3",
+    "output": "../build",
     "sketch": "RGB_Controller.ino"
 }

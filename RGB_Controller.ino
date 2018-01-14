@@ -16,15 +16,15 @@
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
 
-// GLOBAL VARIABLES
-byte BPM = 120;
-
 class LED {
     public:
+        // BPM for all instances of LED
+        static byte BPM;
+
         // Byte array for current RGB values
         byte RGB[3] = {0, 0, 0};
         // Types of pattern
-        enum pattern { NONE, FLASH, FADE };
+        enum pattern { FLASH, FADE };
         
         // VARIABLES
         pattern ActivePattern;
@@ -36,16 +36,28 @@ class LED {
         unsigned long TotalInterval;
         unsigned long Interval;
         unsigned long lastUpdate;
+
+        // Other variables
         byte colourNo = 0;
         byte prevBPM = 0;
-        byte Multiplier = 1;
+        byte BeatDenom = 4;
         float dutyCycle;
         bool onState;
 
+        static int UpdateBPM(int change) {
+            BPM += change;
+            return BPM;
+        }
+
         void updateTiming() {
-            TotalInterval = BPMtoMS(BPM*Multiplier);
+            TotalInterval = calcMS(BeatDenom);
             onTime = TotalInterval*dutyCycle;
             offTime = TotalInterval - onTime;
+        }
+
+        byte getNextColour() {
+            // Select the next colour number (R->G->B->R...)
+            return colourNo < 2 ? colourNo + 1 : 0;
         }
 
         void Update() {
@@ -61,18 +73,20 @@ class LED {
                     FlashUpdate();
                     break;
                 case FADE:
-                    // FadeUpdate();
+                    FadeUpdate();
                     break;
                 default:
                     break;
                 }
+                // Set the lights
+                setColour(RGB[0], RGB[1], RGB[2]);  
             }
         }
 
-        void Flash(float duty = 0.25, byte mult = 1) {
+        void Flash(float duty = 0.25, byte beatDenom = 4) {
             ActivePattern = FLASH;
-            Multiplier = mult > 0 ? mult : 1;
-            TotalInterval = BPMtoMS(BPM*Multiplier);
+            BeatDenom = beatDenom;
+            TotalInterval = calcMS(BeatDenom);
             dutyCycle = duty;
             onTime = TotalInterval*dutyCycle;
             offTime = TotalInterval - onTime;
@@ -91,21 +105,34 @@ class LED {
                 onState = false;
             }
             else {
-                // Select the next colour
-                if(colourNo >= 2) {
-                colourNo = 0;
-                }
-                else {
-                colourNo++;
-                }
-
+                colourNo = getNextColour();
                 RGB[colourNo] = 255;
                 Interval = onTime;
                 onState = true;
-            }
+            } 
+        }
 
-            // Set the lights
-            setColour(RGB[0], RGB[1], RGB[2]);  
+        void Fade(byte beatDenom = 1) {
+            ActivePattern = FADE;
+            BeatDenom = beatDenom;
+            TotalInterval = calcMS(BeatDenom);
+            Interval = TotalInterval/17;
+            RGB[0] = 255;
+            RGB[1] = 0;
+            RGB[2] = 0;
+            colourNo = 0;
+        }
+
+        void FadeUpdate() {
+            if (RGB[colourNo] == 255 && RGB[getNextColour()] < 255) {
+                RGB[getNextColour()] += 15;
+            }
+            else if (RGB[colourNo] > 0 && RGB[getNextColour()] == 255) {
+                RGB[colourNo] -= 15;
+            }
+            else if (RGB[colourNo] == 0 && RGB[getNextColour()] == 255) {
+                colourNo == getNextColour();
+            }
         }
 
         void setColour(byte red, byte green, byte blue) {
@@ -115,8 +142,8 @@ class LED {
             return;
         }
 
-        float BPMtoMS(int BPM) {
-            return 60000/BPM;
+        float calcMS(byte denom) {
+            return 60000/(BPM*denom);
         }
 };
 
@@ -135,16 +162,18 @@ void printColours(byte red, byte green, byte blue) {
     return;
 }
 
-void printBPM() {
+void printBPM(int bpm) {
     // Print a message to the LCD.
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("BPM:");
     lcd.setCursor(0,1);
-    lcd.print(BPM);
+    lcd.print(bpm);
 }
 
 LED rgb_lights;
+
+byte LED::BPM = 120;
 
 void setup() {
     pinMode(R_PIN, OUTPUT);
@@ -153,6 +182,9 @@ void setup() {
     
     pinMode(INC_PIN, INPUT_PULLUP);
     pinMode(DEC_PIN, INPUT_PULLUP);
+    
+    // Initialise BPM for all LED objects
+
     attachInterrupt(digitalPinToInterrupt(INC_PIN), incrementInterval, FALLING);
     attachInterrupt(digitalPinToInterrupt(DEC_PIN), decrementInterval, FALLING);
 
@@ -161,7 +193,7 @@ void setup() {
 
     // set up the LCD's number of columns and rows: 
     lcd.begin(16, 2);
-    printBPM();
+    printBPM(LED::BPM);
 }
 
 void loop() {
@@ -174,8 +206,7 @@ void incrementInterval() {
     static unsigned long lastInterruptTime = 0;
     unsigned long interruptTime = millis();
     if (interruptTime - lastInterruptTime > DEBOUNCE) {
-        ++BPM;
-        printBPM();
+        printBPM(LED::UpdateBPM(1));
     }
     lastInterruptTime = interruptTime;
 }
@@ -184,8 +215,7 @@ void decrementInterval() {
     static unsigned long lastInterruptTime = 0;
     unsigned long interruptTime = millis();
     if (interruptTime - lastInterruptTime > DEBOUNCE) {
-        --BPM;
-        printBPM();
+        printBPM(LED::UpdateBPM(-1));
     }
     lastInterruptTime = interruptTime;
 }

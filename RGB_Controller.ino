@@ -50,7 +50,11 @@ class LED {
         // ---------------------------- FUNCTIONS ----------------------------
 
         void setPattern(pattern inputPattern, order inputOrder, byte inputDenom = 4, float inputDuty = 0.25) {
+<<<<<<< HEAD
             // Variables common to all patterns
+=======
+            // Variables common far all patterns
+>>>>>>> c48cc153d41aa72d85483610d44aaa7b88ba7c71
             ActivePattern = inputPattern;
             ColourOrder = inputOrder;
             BeatDenom = inputDenom;

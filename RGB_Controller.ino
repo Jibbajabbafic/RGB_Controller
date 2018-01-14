@@ -44,8 +44,10 @@ class LED {
         float dutyCycle;
         bool onState;
 
-        static int UpdateBPM(int change) {
-            BPM += change;
+        static byte UpdateBPM(int change) {
+            if ((BPM - change >= 0) && (BPM + change <= 255)) {
+                BPM += change;
+            }
             return BPM;
         }
 

@@ -18,15 +18,15 @@ LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
 
 class LED {
     public:
-        // BPM for all instances of LED
-        static byte BPM;
+        // Define patterns and orders
+        enum pattern { FLASH, FADE };
+        enum order { FORWARD, BACKWARD, RANDOM };
+        
+        // ---------------------------- VARIABLES ----------------------------
 
         // Byte array for current RGB values
-        byte RGB[3] = {0, 0, 0};
-        // Types of pattern
-        enum pattern { FLASH, FADE };
-        
-        // VARIABLES
+        byte RGB[3] = { 0, 0, 0 };
+
         pattern ActivePattern;
         // pattern NextPattern;
 
@@ -38,15 +38,40 @@ class LED {
         unsigned long lastUpdate;
 
         // Other variables
-        byte colourNo = 0;
+        byte BPM = 120;
+        byte CurrentColNo = 0;
+        byte NextColNo = 0;
         byte prevBPM = 0;
         byte BeatDenom = 4;
+        order ColourOrder = FORWARD;
         float dutyCycle;
         bool onState;
 
-        static byte UpdateBPM(int change) {
+        // ---------------------------- FUNCTIONS ----------------------------
+
+        void setPattern(pattern inputPattern, order inputOrder, byte inputDenom = 4, float inputDuty = 0.25) {
+            // Variables common far all patterns
+            ActivePattern = inputPattern;
+            ColourOrder = inputOrder;
+            BeatDenom = inputDenom;
+            TotalInterval = calcMS(BeatDenom);
+
+            switch(inputPattern) {
+                case FLASH:
+                    Flash(inputDuty);
+                    break;       
+                case FADE:
+                    Fade();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        byte UpdateBPM(int change) {
             if ((BPM - change >= 0) && (BPM + change <= 255)) {
                 BPM += change;
+                updateTiming();
             }
             return BPM;
         }
@@ -57,43 +82,45 @@ class LED {
             offTime = TotalInterval - onTime;
         }
 
-        byte getNextColour() {
-            // Select the next colour number (R->G->B->R...)
-            return colourNo < 2 ? colourNo + 1 : 0;
+        byte getNextColNo() {
+            switch(ColourOrder) {
+                // Select the next colour number
+                case FORWARD:
+                    // (R->G->B->R...)
+                    return (CurrentColNo < 2) ? CurrentColNo + 1 : 0;
+                case BACKWARD:
+                    // (B->G->R->B...)
+                    return (CurrentColNo > 0) ? CurrentColNo - 1 : 2;
+                case RANDOM:
+                    // Random colour order;
+                    return random(3);
+            }
         }
 
         void Update() {
-            if(prevBPM != BPM) {
-                prevBPM = BPM;
-                updateTiming();
-            }
-
             if((millis() - lastUpdate) > Interval) {
                 lastUpdate = millis();
                 switch(ActivePattern) {
-                case FLASH:
-                    FlashUpdate();
-                    break;
-                case FADE:
-                    FadeUpdate();
-                    break;
-                default:
-                    break;
+                    case FLASH:
+                        FlashUpdate();
+                        break;       
+                    case FADE:
+                        FadeUpdate();
+                        break;
+                    default:
+                        break;
                 }
-                // Set the lights
+                // Set the lights after updating RGB[]
                 setColour(RGB[0], RGB[1], RGB[2]);  
             }
         }
 
-        void Flash(float duty = 0.25, byte beatDenom = 4) {
-            ActivePattern = FLASH;
-            BeatDenom = beatDenom;
-            TotalInterval = calcMS(BeatDenom);
+        void Flash(float duty = 0.25) {
             dutyCycle = duty;
             onTime = TotalInterval*dutyCycle;
             offTime = TotalInterval - onTime;
             Interval = onTime;
-            colourNo = 0;
+            CurrentColNo = 0;
             onState = false;
         }
 
@@ -107,33 +134,34 @@ class LED {
                 onState = false;
             }
             else {
-                colourNo = getNextColour();
-                RGB[colourNo] = 255;
+                CurrentColNo = getNextColNo();
+                RGB[CurrentColNo] = 255;
                 Interval = onTime;
                 onState = true;
             } 
         }
 
-        void Fade(byte beatDenom = 1) {
-            ActivePattern = FADE;
-            BeatDenom = beatDenom;
-            TotalInterval = calcMS(BeatDenom);
+        void Fade() {
             Interval = TotalInterval/17;
             RGB[0] = 255;
             RGB[1] = 0;
             RGB[2] = 0;
-            colourNo = 0;
+            CurrentColNo = 0;
         }
 
         void FadeUpdate() {
-            if (RGB[colourNo] == 255 && RGB[getNextColour()] < 255) {
-                RGB[getNextColour()] += 15;
+            if (RGB[CurrentColNo] == 255 && RGB[NextColNo] < 255) {
+                RGB[NextColNo] += 15;
             }
-            else if (RGB[colourNo] > 0 && RGB[getNextColour()] == 255) {
-                RGB[colourNo] -= 15;
+            else if (RGB[CurrentColNo] > 0 && RGB[NextColNo] == 255) {
+                RGB[CurrentColNo] -= 15;
             }
-            else if (RGB[colourNo] == 0 && RGB[getNextColour()] == 255) {
-                colourNo == getNextColour();
+            else if (RGB[CurrentColNo] == 0 && RGB[NextColNo] == 255) {
+                CurrentColNo = NextColNo;
+                NextColNo = getNextColNo();
+            }
+            else if (RGB[CurrentColNo] < 255) {
+                RGB[CurrentColNo] += 15;
             }
         }
 
@@ -148,6 +176,8 @@ class LED {
             return 60000/(BPM*denom);
         }
 };
+
+// ---------------------------- GLOBAL FUNCTIONS ----------------------------
 
 void printColours(byte red, byte green, byte blue) {
     lcd.clear();
@@ -175,8 +205,6 @@ void printBPM(int bpm) {
 
 LED rgb_lights;
 
-byte LED::BPM = 120;
-
 void setup() {
     pinMode(R_PIN, OUTPUT);
     pinMode(G_PIN, OUTPUT);
@@ -190,25 +218,25 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(INC_PIN), incrementInterval, FALLING);
     attachInterrupt(digitalPinToInterrupt(DEC_PIN), decrementInterval, FALLING);
 
-    // Start with a pattern
-    rgb_lights.Flash(0.25, 1);
+    // Start rgb_lights with a pattern
+    rgb_lights.setPattern(LED::FLASH, LED::FORWARD, 4, 0.25);
 
     // set up the LCD's number of columns and rows: 
     lcd.begin(16, 2);
-    printBPM(LED::BPM);
+    printBPM(rgb_lights.BPM);
 }
 
 void loop() {
     rgb_lights.Update();
 }
 
-// Interrupt routines and callbacks
+// ---------------------------- INTERRUPT FUNCTIONS ----------------------------
 
 void incrementInterval() {
     static unsigned long lastInterruptTime = 0;
     unsigned long interruptTime = millis();
     if (interruptTime - lastInterruptTime > DEBOUNCE) {
-        printBPM(LED::UpdateBPM(1));
+        printBPM(rgb_lights.UpdateBPM(1));
     }
     lastInterruptTime = interruptTime;
 }
@@ -217,7 +245,7 @@ void decrementInterval() {
     static unsigned long lastInterruptTime = 0;
     unsigned long interruptTime = millis();
     if (interruptTime - lastInterruptTime > DEBOUNCE) {
-        printBPM(LED::UpdateBPM(-1));
+        printBPM(rgb_lights.UpdateBPM(-1));
     }
     lastInterruptTime = interruptTime;
 }

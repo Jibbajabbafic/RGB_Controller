@@ -314,7 +314,7 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
     // ---------------------------- VARIABLES ----------------------------
 
     // Pattern types supported:
-    enum  pattern { NONE, RAINBOW_CYCLE, THEATER_CHASE, COLOR_WIPE, SCANNER, FADE };
+    enum  pattern { NONE, RAINBOW_CYCLE, THEATER_CHASE, COLOR_WIPE, SCANNER, MULTISCANNER, FADE };
     // Directions supported:
     enum  direction { FORWARD, REVERSE };
 
@@ -388,6 +388,9 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
                     break;
                 case SCANNER:
                     ScannerUpdate();
+                    break;
+                case MULTISCANNER:
+                    MultiScannerUpdate();
                     break;
                 case FADE:
                     FadeUpdate();
@@ -526,27 +529,61 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
         show();
         Increment();
     }
-    
+
     // Initialize for a SCANNNER
     void Scanner(uint32_t color1, uint8_t interval)
     {
         ActivePattern = SCANNER;
         Interval = interval;
-        // TotalSteps = (numPixels() - 1) * 2;
-        TotalSteps = (numPixels()-1)/4;
+        TotalSteps = (numPixels() - 1) * 2;
         Color1 = color1;
+        Index = 0;
+    }
+ 
+    // Update the Scanner Pattern
+    void ScannerUpdate()
+    { 
+        for (int i = 0; i < numPixels(); i++)
+        {
+            if (i == Index)  // Scan Pixel to the right
+            {
+                 setPixelColor(i, Color1);
+            }
+            else if (i == TotalSteps - Index) // Scan Pixel to the left
+            {
+                 setPixelColor(i, Color1);
+            }
+            else // Fading tail
+            {
+                 setPixelColor(i, DimColor(getPixelColor(i)));
+            }
+        }
+        show();
+        Increment();
+    }
+    
+
+    // Initialize for a MULTISCANNNER
+    void MultiScanner(uint32_t color1, uint32_t color2, uint8_t sections, uint8_t interval)
+    {
+        ActivePattern = MULTISCANNER;
+        Interval = interval;
+        // TotalSteps = (numPixels() - 1) * 2;
+        TotalSteps = numPixels()/sections;
+        Color1 = color1;
+        Color2 = color2;
         Index = 0;
     }
 
     // Update the Scanner Pattern
-    void ScannerUpdate()
+    void MultiScannerUpdate()
     { 
         for (int i = 0; i < numPixels(); i++) {
             if (i % TotalSteps == Index) {
                 setPixelColor(i, Color1);
             }
             else if (i % TotalSteps == TotalSteps - Index) {
-                setPixelColor(i, Color1);
+                setPixelColor(i, Color2);
             }
             else {
                 setPixelColor(i, DimColor(getPixelColor(i)));
@@ -554,6 +591,14 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
         }
         show();
         Increment();
+
+        // Check if half way through journey, callback to change colour
+        if (Index == TotalSteps/2) {
+            if (OnComplete != NULL)
+            {
+                OnComplete(); // call the completion callback
+            }            
+        }
     }
     
     // Initialize for a Fade
@@ -662,7 +707,8 @@ void setup() {
     // rgb_lights.setPattern(LED::STROBE, LED::FORWARD, 8);
     
     Stick.begin();
-    Stick.Scanner(Stick.Color(237, 22, 140), 1);
+    Stick.MultiScanner(Stick.Color(237, 22, 140), Stick.Wheel(Stick.Color(237, 22, 140)), 4, 20);
+    // Stick.Scanner(Stick.Color(237, 22, 140), 20);
 
     // set up the LCD's number of columns and rows: 
     lcd.begin(16, 2);
@@ -690,6 +736,7 @@ void StickComplete()
 {
     // Random color change for next scan
     Stick.Color1 = Stick.Wheel(random(255));
+    Stick.Color2 = Stick.Wheel(Stick.Color1/2);
 }
 
 // ---------------------------- INTERRUPT FUNCTIONS ----------------------------

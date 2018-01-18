@@ -4,13 +4,15 @@
             "name": "Win32",
             "includePath": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
-                "${workspaceRoot}"
+                "${workspaceRoot}",
+                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false,
                 "path": [
                     "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
-                    "C:\\Program Files (x86)\\Arduino\\libraries"
+                    "C:\\Program Files (x86)\\Arduino\\libraries",
+                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
                 ]
             },
             "intelliSenseMode": "msvc-x64"

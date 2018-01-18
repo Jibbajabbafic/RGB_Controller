@@ -1,5 +1,8 @@
 #include <Adafruit_NeoPixel.h>
 
+#define N_LEDS 300
+#define PIN 31
+
 // Pattern types supported:
 enum  pattern { NONE, RAINBOW_CYCLE, THEATER_CHASE, COLOR_WIPE, SCANNER, FADE };
 // Patern directions supported:
@@ -178,7 +181,8 @@ class NeoPatterns : public Adafruit_NeoPixel
     {
         ActivePattern = SCANNER;
         Interval = interval;
-        TotalSteps = (numPixels() - 1) * 2;
+        // TotalSteps = (numPixels() - 1) * 2;
+        TotalSteps = (numPixels()-1)/8;
         Color1 = color1;
         Index = 0;
     }
@@ -186,19 +190,42 @@ class NeoPatterns : public Adafruit_NeoPixel
     // Update the Scanner Pattern
     void ScannerUpdate()
     { 
-        for (int i = 0; i < numPixels(); i++)
-        {
-            if (i == Index)  // Scan Pixel to the right
-            {
-                 setPixelColor(i, Color1);
+        // for (int i = 0; i < numPixels(); i++)
+        // {
+        //     for (int j = 0; j < N_LEDS/60; j++)
+        //     {
+        //         if (i == Index + j * 30)  // Scan Pixel to the right
+        //         {
+        //             setPixelColor(i + j * 30, Color1);
+        //         }
+        //         else if (i == TotalSteps - Index + j * 30) // Scan Pixel to the left
+        //         {
+        //             setPixelColor(i + j * 30, Color1);
+        //         }
+        //         else  if (i == Index - j * 30)  // Scan Pixel to the right
+        //         {
+        //             setPixelColor(i - j * 30, Color1);
+        //         }
+        //         else if (i == TotalSteps - Index - j * 30) // Scan Pixel to the left
+        //         {
+        //             setPixelColor(i - j * 30, Color1);
+        //         }                
+        //         else // Fading tail
+        //         {
+        //             setPixelColor(i + j * 30, DimColor(getPixelColor(i + j * 30)));
+        //             setPixelColor(i - j * 30, DimColor(getPixelColor(i - j * 30)));
+        //         }
+        //     }
+        // }
+        for (int i = 0; i < numPixels(); i++) {
+            if (i % TotalSteps == Index) {
+                setPixelColor(i, Color1);
             }
-            else if (i == TotalSteps - Index) // Scan Pixel to the left
-            {
-                 setPixelColor(i, Color1);
+            else if (i % TotalSteps == TotalSteps - Index) {
+                setPixelColor(i, Color1);
             }
-            else // Fading tail
-            {
-                 setPixelColor(i, DimColor(getPixelColor(i)));
+            else {
+                setPixelColor(i, DimColor(getPixelColor(i)));
             }
         }
         show();
@@ -289,111 +316,39 @@ class NeoPatterns : public Adafruit_NeoPixel
     }
 };
 
-void Ring1Complete();
-void Ring2Complete();
 void StickComplete();
 
 // Define some NeoPatterns for the two rings and the stick
 //  as well as some completion routines
-NeoPatterns Ring1(24, 5, NEO_GRB + NEO_KHZ800, &Ring1Complete);
-NeoPatterns Ring2(16, 6, NEO_GRB + NEO_KHZ800, &Ring2Complete);
-NeoPatterns Stick(16, 7, NEO_GRB + NEO_KHZ800, &StickComplete);
+NeoPatterns Stick(N_LEDS, PIN, NEO_GRB + NEO_KHZ800, &StickComplete);
 
 // Initialize everything and prepare to start
 void setup()
 {
   Serial.begin(115200);
-
-   pinMode(8, INPUT_PULLUP);
-   pinMode(9, INPUT_PULLUP);
     
     // Initialize all the pixelStrips
-    Ring1.begin();
-    Ring2.begin();
     Stick.begin();
     
     // Kick off a pattern
-    Ring1.TheaterChase(Ring1.Color(255,255,0), Ring1.Color(0,0,50), 100);
-    Ring2.RainbowCycle(3);
-    Ring2.Color1 = Ring1.Color1;
-    Stick.Scanner(Ring1.Color(255,0,0), 55);
+    Stick.Scanner(Stick.Color(237, 22, 140), 1);
+    // Stick.Scanner(Stick.Color(0, 0, 0), 5);
+    // Stick.TheaterChase(Stick.Wheel(random(255)), Stick.Wheel(random(255)), 60);
+    // Stick.ColorWipe(Stick.Wheel(random(255)),Stick.Wheel(random(255)));
+    // Stick.RainbowCycle(Stick.Color(237, 22, 140));
+    // Stick.Fade(Stick.Color(237, 22, 140), Stick.Color(0, 0, 0), 50, 50);
 }
 
 // Main loop
 void loop()
 {
-    // Update the rings.
-    Ring1.Update();
-    Ring2.Update();    
-    
-    // Switch patterns on a button press:
-    if (digitalRead(8) == LOW) // Button #1 pressed
-    {
-        // Switch Ring1 to FADE pattern
-        Ring1.ActivePattern = FADE;
-        Ring1.Interval = 20;
-        // Speed up the rainbow on Ring2
-        Ring2.Interval = 0;
-        // Set stick to all red
-        Stick.ColorSet(Stick.Color(255, 0, 0));
-    }
-    else if (digitalRead(9) == LOW) // Button #2 pressed
-    {
-        // Switch to alternating color wipes on Rings1 and 2
-        Ring1.ActivePattern = COLOR_WIPE;
-        Ring2.ActivePattern = COLOR_WIPE;
-        Ring2.TotalSteps = Ring2.numPixels();
-        // And update tbe stick
-        Stick.Update();
-    }
-    else // Back to normal operation
-    {
-        // Restore all pattern parameters to normal values
-        Ring1.ActivePattern = THEATER_CHASE;
-        Ring1.Interval = 100;
-        Ring2.ActivePattern = RAINBOW_CYCLE;
-        Ring2.TotalSteps = 255;
-        Ring2.Interval = min(10, Ring2.Interval);
-        // And update tbe stick
-        Stick.Update();
-    }    
+    // Update the lights
+    Stick.Update();
 }
 
 //------------------------------------------------------------
 //Completion Routines - get called on completion of a pattern
 //------------------------------------------------------------
-
-// Ring1 Completion Callback
-void Ring1Complete()
-{
-    if (digitalRead(9) == LOW)  // Button #2 pressed
-    {
-        // Alternate color-wipe patterns with Ring2
-        Ring2.Interval = 40;
-        Ring1.Color1 = Ring1.Wheel(random(255));
-        Ring1.Interval = 20000;
-    }
-    else  // Retrn to normal
-    {
-      Ring1.Reverse();
-    }
-}
-
-// Ring 2 Completion Callback
-void Ring2Complete()
-{
-    if (digitalRead(9) == LOW)  // Button #2 pressed
-    {
-        // Alternate color-wipe patterns with Ring1
-        Ring1.Interval = 20;
-        Ring2.Color1 = Ring2.Wheel(random(255));
-        Ring2.Interval = 20000;
-    }
-    else  // Retrn to normal
-    {
-        Ring2.RainbowCycle(random(0,10));
-    }
-}
 
 // Stick Completion Callback
 void StickComplete()

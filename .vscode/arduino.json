@@ -3,5 +3,5 @@
     "configuration": "cpu=atmega2560",
     "port": "COM3",
     "output": "../build",
-    "sketch": "RGB_Controller.ino"
+    "sketch": "midi_clock_test.ino"
 }

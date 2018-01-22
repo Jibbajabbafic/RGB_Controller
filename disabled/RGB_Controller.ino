@@ -707,7 +707,7 @@ void setup() {
     // rgb_lights.setPattern(LED::STROBE, LED::FORWARD, 8);
     
     Stick.begin();
-    Stick.MultiScanner(Stick.Color(237, 22, 140), Stick.Wheel(Stick.Color(237, 22, 140)), 4, 20);
+    Stick.MultiScanner(Stick.Color(237, 22, 140), Stick.Wheel(Stick.Color(237, 22, 140)), 16, 20);
     // Stick.Scanner(Stick.Color(237, 22, 140), 20);
 
     // set up the LCD's number of columns and rows: 

@@ -11,10 +11,13 @@ byte midi_continue = 0xfb;
 int play_flag = 0;
 byte data;
 byte counter;
+bool reset = 0;
 
 unsigned long interval;
 unsigned long prev_millis = 0;
 unsigned long now_millis = 0;
+unsigned long prev_interval_signal = 0;
+unsigned long reset_interval = 3000;
 
 void setup() {
     lcd.begin(16, 2);
@@ -25,19 +28,36 @@ void setup() {
 
 void loop() {
     if(Serial1.available() > 0) {
+        if (reset) {
+            reset = 0;
+            lcd.clear();
+        }
+
         data = Serial1.read();
-        if(data == midi_start) {
-            play_flag = 1;
+        // if(data == midi_start) {
+        //     play_flag = 1;
+        // }
+        // else if(data == midi_continue) {
+        //     play_flag = 1;
+        // }
+        //else 
+        if(data == midi_stop) {
+            // play_flag = 0;
+            counter = 0;
+            analogWrite(31, 0);
         }
-        else if(data == midi_continue) {
-            play_flag = 1;
-        }
-        else if(data == midi_stop) {
-            play_flag = 0;
-        }
-        else if((data == midi_clock) && (play_flag == 1)) {
+        else if((data == midi_clock) /*&& (play_flag == 1)*/) {
             Sync();
         }
+        
+        prev_interval_signal = millis();
+    }
+    else if (millis() - prev_interval_signal >= reset_interval && !reset) {
+        reset = 1;
+        play_flag = 0;
+        counter = 0;
+        lcd.clear();
+        lcd.print("No clock signal!");
     }
 }
 
@@ -50,17 +70,18 @@ void Sync() {
 
         lcd.clear();
         lcd.setCursor(0,1);
-        lcd.print(60000/interval);
+        lcd.print(60000.0/interval);
         lcd.print(" BPM");
         analogWrite(31, 255);
     }
     else {
         ++counter;
     }
+
     if (counter == 3) {
         analogWrite(31, 0);
     }
     
     lcd.setCursor(0,0);
     lcd.print(counter);
-} 
+}

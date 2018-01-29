@@ -1,87 +1,168 @@
-// Including library code
+#include <MovingAverage.h>
 #include <LiquidCrystal.h>
 
-// initialize the library with the numbers of the interface pins
+class MIDI_Sync : private MovingAverage {
+    // -------------------- Public variables and functions --------------------
+    public:
+    
+    MIDI_Sync(HardwareSerial *serial_in, byte initial_BPM = 120, unsigned long reset_interval = 3000, void (*callback_beat)() = NULL, void (*callback_reset)() = NULL)
+    :MovingAverage(0.2) {
+
+        // Function to call every beat
+        OnBeat = callback_beat;
+        OnReset = callback_reset;
+
+        // Set up corresponding serial port with MIDI baud rate
+        _Serial = serial_in;
+        _Serial->begin(Baud_Rate);
+
+        MovingAverage::reset(initial_BPM);
+
+        Reset_Interval = reset_interval;
+    }
+
+    void Update() {
+        
+        // Check if serial connection is available
+        if(_Serial->available() > 0) {
+
+            // Read serial port
+            Data = _Serial->read();
+
+            // Check for MIDI data
+            if(Data == MIDI_Stop) {
+                Counter = 0;
+            }
+            else if(Data == MIDI_Clock) {
+                Sync();
+            }
+            
+            // Set reset flag low
+            if (Reset) {
+                Reset = 0;
+            }
+            Last_Call = millis();
+        }
+
+        // Check if reset callback specified
+        else if( OnReset != NULL) {
+
+            // Check if reset time elapsed
+            if (millis() - Last_Call >= Reset_Interval && !Reset) {
+                Reset = 1;
+                Counter = 0;
+                OnReset();
+            }
+        }
+    }
+
+    void Sync() {
+
+        // Check if reached 24th pulse and reset back to 0
+        if (Counter == 23) {
+            Counter = 0;
+
+            // Check if Now_Millis has been set before for more accurate initial timings
+            if (Now_Millis > 0) {
+                Prev_Millis = Now_Millis;
+                Now_Millis = millis();
+                Interval = Now_Millis - Prev_Millis;
+
+                // Update the moving average function
+                MovingAverage::update(60000.0/Interval);
+                
+                // prev_micros = now_micros;
+                // now_micros = micros();
+                // interval = now_micros - prev_micros;
+                // average.update(60000000.0/interval);
+
+                // Call the beat callback if it exists
+                if (OnBeat != NULL) {
+                    OnBeat();
+                }
+            }
+            else {
+                Now_Millis = millis();
+            }
+        }
+        else {
+            ++Counter;
+        }
+    }
+
+    float GetBPM() {
+        return MovingAverage::get();
+    }
+
+    // -------------------- Private variables and functions --------------------
+    private:
+    
+    // Function to call on every beat
+    void (*OnBeat)();
+
+    // Funcation to call on reset
+    void (*OnReset)();
+
+    // Serial object
+    HardwareSerial *_Serial = NULL;
+
+    // MIDI signals
+    byte MIDI_Start = 0xfa;
+    byte MIDI_Stop = 0xfc;
+    byte MIDI_Clock = 0xf8;
+    byte MIDI_Continue = 0xfb;
+
+    // MIDI baud rate
+    int Baud_Rate = 31250;
+
+    // Timing variables
+    unsigned long Interval;
+    unsigned long Prev_Millis = 0;
+    unsigned long Now_Millis = 0;
+    unsigned long Last_Call = 0;
+    unsigned long Reset_Interval;
+
+    // Other variables
+    byte Data;
+    byte Counter = 0;;
+    bool Reset = 0;
+};
+
+// Initialise MIDI_Sync with parameters
+MIDI_Sync midi_sync(&Serial1, 128, 3000, &beat, &reset);
+
+// Initialise lcd display with corresponding pins
 LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
 
-byte midi_start = 0xfa;
-byte midi_stop = 0xfc;
-byte midi_clock = 0xf8;
-byte midi_continue = 0xfb;
-int play_flag = 0;
-byte data;
-byte counter;
-bool reset = 0;
-
-unsigned long interval;
-unsigned long prev_millis = 0;
-unsigned long now_millis = 0;
-unsigned long prev_interval_signal = 0;
-unsigned long reset_interval = 3000;
+byte state = 0;
+unsigned long prev_time;
 
 void setup() {
     lcd.begin(16, 2);
-    Serial1.begin(31250);
     lcd.clear();
     lcd.print("Setup!");
 }
 
 void loop() {
-    if(Serial1.available() > 0) {
-        if (reset) {
-            reset = 0;
-            lcd.clear();
-        }
+    midi_sync.Update();
 
-        data = Serial1.read();
-        // if(data == midi_start) {
-        //     play_flag = 1;
-        // }
-        // else if(data == midi_continue) {
-        //     play_flag = 1;
-        // }
-        //else 
-        if(data == midi_stop) {
-            // play_flag = 0;
-            counter = 0;
-            analogWrite(31, 0);
-        }
-        else if((data == midi_clock) /*&& (play_flag == 1)*/) {
-            Sync();
-        }
-        
-        prev_interval_signal = millis();
-    }
-    else if (millis() - prev_interval_signal >= reset_interval && !reset) {
-        reset = 1;
-        play_flag = 0;
-        counter = 0;
-        lcd.clear();
-        lcd.print("No clock signal!");
+    if (millis() - prev_time > 25 && state) {
+        analogWrite(31, 0);
+        state = 0;
     }
 }
 
-void Sync() {
-    if (counter == 23) {
-        counter = 0;
-        prev_millis = now_millis;
-        now_millis = millis();
-        interval = now_millis - prev_millis;
+void reset() {
+    lcd.clear();
+    lcd.print("No clock signal!");
+}
 
-        lcd.clear();
-        lcd.setCursor(0,1);
-        lcd.print(60000.0/interval);
-        lcd.print(" BPM");
-        analogWrite(31, 255);
-    }
-    else {
-        ++counter;
-    }
-
-    if (counter == 3) {
-        analogWrite(31, 0);
-    }
-    
-    lcd.setCursor(0,0);
-    lcd.print(counter);
+void beat() {
+    lcd.clear();
+    lcd.setCursor(0,1);
+    lcd.print(midi_sync.GetBPM());
+    lcd.print(" BPM");
+    analogWrite(31, 255);
+    state = 1;
+    prev_time = millis();
 }

@@ -5,14 +5,16 @@
             "includePath": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                 "${workspaceRoot}",
-                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
+                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
+                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false,
                 "path": [
                     "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                     "C:\\Program Files (x86)\\Arduino\\libraries",
-                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
+                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
+                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage"
                 ]
             },
             "intelliSenseMode": "msvc-x64"

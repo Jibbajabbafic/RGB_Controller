@@ -8,7 +8,7 @@
 #define B_PIN 11
 
 // Define pin for RGB_Addr outputs and number of LEDs
-#define ADDR_PIN 31
+#define ADDR_PIN 37
 #define N_LEDS 300
 
 // Debounce time for inputs
@@ -707,8 +707,9 @@ void setup() {
     // rgb_lights.setPattern(LED::STROBE, LED::FORWARD, 8);
     
     Stick.begin();
-    Stick.MultiScanner(Stick.Color(237, 22, 140), Stick.Wheel(Stick.Color(237, 22, 140)), 16, 20);
+    // Stick.MultiScanner(Stick.Color(237, 22, 140), Stick.Wheel(Stick.Color(237, 22, 140)), 16, 20);
     // Stick.Scanner(Stick.Color(237, 22, 140), 20);
+    Stick.RainbowCycle(1);
 
     // set up the LCD's number of columns and rows: 
     lcd.begin(16, 2);

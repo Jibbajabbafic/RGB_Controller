@@ -1,14 +1,26 @@
+// Define pins for RGB outputs
+#define R_PIN 13
+#define G_PIN 12
+#define B_PIN 11
+
+// Define pin for RGB_Addr outputs and number of LEDs being controlled
+#define ADDR_PIN 37
+#define N_LEDS 300
+
+// Include required libraries
 #include <MovingAverage.h>
+#include <Adafruit_NeoPixel.h>
 #include <LiquidCrystal.h>
 
 class MIDI_Sync : private MovingAverage {
     // -------------------- Public variables and functions --------------------
     public:
     
-    MIDI_Sync(HardwareSerial *serial_in, byte initial_BPM = 120, unsigned long reset_interval = 3000, void (*callback_beat)() = NULL, void (*callback_reset)() = NULL)
+    MIDI_Sync(HardwareSerial *serial_in, byte initial_BPM = 120, unsigned long reset_interval = 3000, void (*callback_tick)() = NULL, void (*callback_beat)() = NULL, void (*callback_reset)() = NULL)
     :MovingAverage(0.2) {
 
         // Function to call every beat
+        OnTick = callback_tick;
         OnBeat = callback_beat;
         OnReset = callback_reset;
 
@@ -57,7 +69,6 @@ class MIDI_Sync : private MovingAverage {
     }
 
     void Sync() {
-
         // Check if reached 24th pulse and reset back to 0
         if (Counter == 23) {
             Counter = 0;
@@ -70,11 +81,6 @@ class MIDI_Sync : private MovingAverage {
 
                 // Update the moving average function
                 MovingAverage::update(60000.0/Interval);
-                
-                // prev_micros = now_micros;
-                // now_micros = micros();
-                // interval = now_micros - prev_micros;
-                // average.update(60000000.0/interval);
 
                 // Call the beat callback if it exists
                 if (OnBeat != NULL) {
@@ -88,6 +94,11 @@ class MIDI_Sync : private MovingAverage {
         else {
             ++Counter;
         }
+
+        // Call the tick function if it exists (24 per beat);
+        if (OnTick != NULL) {
+            OnTick();
+        }
     }
 
     float GetBPM() {
@@ -97,10 +108,9 @@ class MIDI_Sync : private MovingAverage {
     // -------------------- Private variables and functions --------------------
     private:
     
-    // Function to call on every beat
+    // Callback functions
+    void (*OnTick)();
     void (*OnBeat)();
-
-    // Funcation to call on reset
     void (*OnReset)();
 
     // Serial object
@@ -128,8 +138,66 @@ class MIDI_Sync : private MovingAverage {
     bool Reset = 0;
 };
 
-// Initialise MIDI_Sync with parameters
-MIDI_Sync midi_sync(&Serial1, 128, 3000, &beat, &reset);
+class RGB_Colours {
+    public:
+    // ---------------------------- COLOUR FUNCTIONS ----------------------------
+
+    // Returns the Red component of a 32-bit colour
+    uint8_t Red(uint32_t colour)
+    {
+        return (colour >> 16) & 0xFF;
+    }
+
+    // Returns the Green component of a 32-bit colour
+    uint8_t Green(uint32_t colour)
+    {
+        return (colour >> 8) & 0xFF;
+    }
+
+    // Returns the Blue component of a 32-bit colour
+    uint8_t Blue(uint32_t colour)
+    {
+        return colour & 0xFF;
+    }
+
+    uint32_t Colour(uint8_t r, uint8_t g, uint8_t b) {
+        return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
+    }
+
+    uint32_t Wheel(byte WheelPos)
+    {
+        WheelPos = 255 - WheelPos;
+        if(WheelPos < 85)
+        {
+            return Colour(255 - WheelPos * 3, 0, WheelPos * 3);
+        }
+        else if(WheelPos < 170)
+        {
+            WheelPos -= 85;
+            return Colour(0, WheelPos * 3, 255 - WheelPos * 3);
+        }
+        else
+        {
+            WheelPos -= 170;
+            return Colour(WheelPos * 3, 255 - WheelPos * 3, 0);
+        }
+    }
+
+    uint32_t Complement(uint32_t ColourCode) {
+        return 0x00FFFFFF - ColourCode;
+    }
+};
+
+class LED_Strip : public RGB_Colours {
+
+};
+
+class LED_Addr : public RGB_Colours {
+
+};
+
+// Initialise MIDI_Sync object
+MIDI_Sync midi_sync(&Serial1, 128, 3000, &tick, &beat, &reset);
 
 // Initialise lcd display with corresponding pins
 LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
@@ -146,15 +214,14 @@ void setup() {
 void loop() {
     midi_sync.Update();
 
-    if (millis() - prev_time > 25 && state) {
+    if (millis() - prev_time > 100 && state) {
         analogWrite(31, 0);
         state = 0;
     }
 }
 
-void reset() {
-    lcd.clear();
-    lcd.print("No clock signal!");
+void tick() {
+
 }
 
 void beat() {
@@ -165,4 +232,9 @@ void beat() {
     analogWrite(31, 255);
     state = 1;
     prev_time = millis();
+}
+
+void reset() {
+    lcd.clear();
+    lcd.print("No clock signal!");
 }

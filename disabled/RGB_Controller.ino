@@ -653,7 +653,6 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
 
 };
 
-
 // ---------------------------- GLOBAL FUNCTIONS ----------------------------
 
 void printColours(byte red, byte green, byte blue) {

@@ -1,7 +1,7 @@
 {
-    "board": "arduino:avr:mega",
-    "configuration": "cpu=atmega2560",
-    "port": "COM3",
+    "board": "arduino:avr:nano",
+    "configuration": "cpu=atmega328",
+    "port": "COM4",
     "output": "../build",
-    "sketch": "RGB_MIDI_Timing.ino"
+    "sketch": "basic_midi_test.ino"
 }

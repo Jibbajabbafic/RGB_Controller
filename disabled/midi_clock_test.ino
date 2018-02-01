@@ -1,6 +1,8 @@
 #include <MovingAverage.h>
 #include <LiquidCrystal.h>
 
+#define BEAT_PIN 2
+
 class MIDI_Sync : private MovingAverage {
     // -------------------- Public variables and functions --------------------
     public:
@@ -128,10 +130,10 @@ class MIDI_Sync : private MovingAverage {
 };
 
 // Initialise MIDI_Sync with parameters
-MIDI_Sync midi_sync(&Serial1, 128, 3000, &tick, &beat, &reset);
+MIDI_Sync midi_sync(&Serial, 128, 3000, &tick, &beat, &reset);
 
 // Initialise lcd display with corresponding pins
-LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
+LiquidCrystal lcd(4, 5, 6, 7, 8, 9);
 
 byte state = 0;
 unsigned long prev_time;
@@ -146,7 +148,7 @@ void loop() {
     midi_sync.Update();
 
     if (millis() - prev_time > 100 && state) {
-        analogWrite(31, 0);
+        analogWrite(BEAT_PIN, 0);
         state = 0;
     }
 }
@@ -160,7 +162,7 @@ void beat() {
     lcd.setCursor(0,1);
     lcd.print(midi_sync.GetBPM());
     lcd.print(" BPM");
-    analogWrite(31, 255);
+    analogWrite(BEAT_PIN, 255);
     state = 1;
     prev_time = millis();
 }

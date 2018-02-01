@@ -6,7 +6,9 @@
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                 "${workspaceRoot}",
                 "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
-                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage"
+                "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage",
+                "C:\\Users\\Think\\Documents\\Arduino\\libraries\\MovingAverage",
+                "C:\\Users\\Think\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false,
@@ -14,7 +16,10 @@
                     "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                     "C:\\Program Files (x86)\\Arduino\\libraries",
                     "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
-                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage"
+                    "D:\\Users\\Jasper\\Documents\\Arduino\\libraries\\MovingAverage",
+                    "C:\\Users\\Think\\Documents\\Arduino\\libraries\\MovingAverage-master",
+                    "C:\\Users\\Think\\Documents\\Arduino\\libraries\\MovingAverage",
+                    "C:\\Users\\Think\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel"
                 ]
             },
             "intelliSenseMode": "msvc-x64"

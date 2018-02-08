@@ -335,40 +335,6 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
         OnComplete = callback;
     }
 
-    // Function to set a pattern with other parameters (some parameters only needed for certain functions)
-    // void setPattern(pattern inputPattern, direction dir = FORWARD, byte inputDenom = 4, float inputDuty = 0.25) {
-        
-    //     // Set up variables common to all patterns
-    //     ActivePattern = inputPattern;
-    //     Direction = dir;
-    //     BeatDenom = inputDenom;
-    //     TotalInterval = calcMS(BeatDenom);
-
-    //     // Set up specific variables for each different pattern
-    //     switch(inputPattern) {
-    //         case RAINBOW_CYCLE:
-    //             RainbowCycle();
-    //             break;
-    //         case THEATER_CHASE:
-    //             TheaterChase();
-    //             break;
-    //         case COLOR_WIPE:
-    //             ColorWipe();
-    //             break;
-    //         case SCANNER:
-    //             Scanner();
-    //             break;
-    //         case FADE:
-    //             Fade();
-    //             break;
-    //         case NONE:
-    //             None();
-    //             break;
-    //         default:
-    //             break;
-    //     }
-    // }
-
     // Update the pattern
     void Update()
     {
@@ -401,19 +367,6 @@ class RGB_Addr : public LED, public Adafruit_NeoPixel {
                     break;
             }
         }
-    }
-
-    void updateTiming() {
-        TotalInterval = calcMS(BeatDenom);
-        // switch (ActivePattern) {
-        //     case FLASH:
-        //         onTime = TotalInterval*dutyCycle;
-        //         offTime = TotalInterval - onTime;
-        //         break;
-        //     case FADE:
-        //         Interval = TotalInterval/TotalSteps;
-        //         break;
-        // }
     }
 
     // Increment the Index and reset at the end
